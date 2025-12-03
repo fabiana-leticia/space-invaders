@@ -1,56 +1,45 @@
 import pygame
 import random
+import os
 
 pygame.init()
 
-# Screen
+# -----------------------------
+# SCREEN SETUP
+# -----------------------------
 WIDTH = 800
 HEIGHT = 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Space Invaders")
 
-# Colors
+# -----------------------------
+# COLORS AND FONTS
+# -----------------------------
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 YELLOW = (255, 255, 0)
 BLACK = (0, 0, 0)
 
-# Fonts
 font = pygame.font.Font(None, 48)
 small_font = pygame.font.Font(None, 36)
-
 clock = pygame.time.Clock()
 
 # -----------------------------
-# FUNCTIONS
+# PATHS
 # -----------------------------
-def generate_stars(num_stars):
-    stars = []
-    for _ in range(num_stars):
-        x = random.randint(0, WIDTH)
-        y = random.randint(0, HEIGHT)
-        size = random.randint(1, 3)
-        stars.append([x, y, size])
-    return stars
-
-def draw_stars(stars):
-    for star in stars:
-        star[1] += 1
-        if star[1] > HEIGHT:
-            star[1] = 0
-            star[0] = random.randint(0, WIDTH)
-        pygame.draw.rect(screen, WHITE, (star[0], star[1], star[2], star[2]))
+CURRENT_PATH = os.path.dirname(__file__)
+ALIENS_PATH = os.path.join(CURRENT_PATH, "aliens")
 
 # -----------------------------
-# CLASSES
+# PLAYER CLASS
 # -----------------------------
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.image = pygame.Surface((50, 15))
         self.image.fill(GREEN)
-        self.rect = self.image.get_rect(center=(WIDTH/2, HEIGHT - 30))
+        self.rect = self.image.get_rect(center=(WIDTH / 2, HEIGHT - 30))
         self.speed = 5
         self.lives = 3
 
@@ -60,6 +49,9 @@ class Player(pygame.sprite.Sprite):
         if keys[pygame.K_RIGHT] and self.rect.right < WIDTH:
             self.rect.x += self.speed
 
+# -----------------------------
+# LASER CLASSES
+# -----------------------------
 class Laser(pygame.sprite.Sprite):
     def __init__(self, pos):
         super().__init__()
@@ -86,12 +78,13 @@ class EnemyLaser(pygame.sprite.Sprite):
         if self.rect.top > HEIGHT:
             self.kill()
 
+# -----------------------------
+# ENEMY BASE CLASS
+# -----------------------------
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        self.image = pygame.Surface((30, 20))
-        self.image.fill(WHITE)
-        self.rect = self.image.get_rect(topleft=(x, y))
+        self.rect = pygame.Rect(x, y, 30, 20)
         self.speed = 1
         self.direction = 1
 
@@ -100,6 +93,35 @@ class Enemy(pygame.sprite.Sprite):
         if self.rect.right >= WIDTH or self.rect.left <= 0:
             self.direction *= -1
             self.rect.y += 20
+
+# -----------------------------
+# ALIEN CLASSES WITH RESIZED IMAGES
+# -----------------------------
+ALIEN_WIDTH = 40
+ALIEN_HEIGHT = 40
+
+class AlienType1(Enemy):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.image = pygame.image.load(os.path.join(ALIENS_PATH, "alien1.png")).convert_alpha()
+        self.image = pygame.transform.scale(self.image, (ALIEN_WIDTH, ALIEN_HEIGHT))
+        self.rect = self.image.get_rect(topleft=(x, y))
+
+class AlienType2(Enemy):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.image = pygame.image.load(os.path.join(ALIENS_PATH, "alien2.png")).convert_alpha()
+        self.image = pygame.transform.scale(self.image, (ALIEN_WIDTH, ALIEN_HEIGHT))
+        self.rect = self.image.get_rect(topleft=(x, y))
+        self.speed = 1.5
+
+class AlienType3(Enemy):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.image = pygame.image.load(os.path.join(ALIENS_PATH, "alien3.png")).convert_alpha()
+        self.image = pygame.transform.scale(self.image, (ALIEN_WIDTH, ALIEN_HEIGHT))
+        self.rect = self.image.get_rect(topleft=(x, y))
+        self.speed = 0.7
 
 # -----------------------------
 # GAME LOOP
@@ -111,23 +133,35 @@ def run_game():
     enemy_laser_group = pygame.sprite.Group()
     enemy_group = pygame.sprite.Group()
 
+    # Create enemies
     for row in range(3):
         for col in range(8):
-            enemy_group.add(Enemy(100 + col*70, 50 + row*50))
+            if row == 0:
+                enemy = AlienType1(100 + col * 70, 50 + row * 50)
+            elif row == 1:
+                enemy = AlienType2(100 + col * 70, 50 + row * 50)
+            else:
+                enemy = AlienType3(100 + col * 70, 50 + row * 50)
+            enemy_group.add(enemy)
 
-    stars = generate_stars(100)
     score = 0
     difficulty = 1
     running = True
+
+    # Create star background
+    stars = [[random.randint(0, WIDTH), random.randint(0, HEIGHT)] for _ in range(100)]
 
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return "quit"
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                laser_group.add(Laser(player.rect.midtop))
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    laser = Laser(player.rect.midtop)
+                    laser_group.add(laser)
 
         difficulty += 0.001
+
         keys = pygame.key.get_pressed()
         player_group.update(keys)
         laser_group.update()
@@ -135,35 +169,42 @@ def run_game():
         enemy_laser_group.update()
 
         # Enemy shooting
-        if len(enemy_group) > 0 and random.random() < 0.01 * difficulty:
-            shooter = random.choice(enemy_group.sprites())
-            enemy_laser_group.add(EnemyLaser(shooter.rect.midbottom))
+        if len(enemy_group) > 0:
+            if random.random() < 0.01 * difficulty:
+                shooter = random.choice(enemy_group.sprites())
+                enemy_laser = EnemyLaser(shooter.rect.midbottom)
+                enemy_laser_group.add(enemy_laser)
 
-        # Collisions
+        # Collision: player laser hits enemy
         for laser in laser_group:
             hits = pygame.sprite.spritecollide(laser, enemy_group, True)
             if hits:
                 laser.kill()
                 score += len(hits)
 
+        # Collision: enemy laser hits player
         if pygame.sprite.spritecollide(player, enemy_laser_group, True):
             player.lives -= 1
             if player.lives <= 0:
-                return ("lose", score)
+                return "lose", score
 
+        # Enemy reaches bottom
         for enemy in enemy_group:
             if enemy.rect.bottom >= HEIGHT:
-                return ("lose", score)
+                return "lose", score
 
+        # WIN condition
         if len(enemy_group) == 0:
-            return ("win", score)
+            return "win", score
 
+        # Increase speed when fewer enemies are alive
         for enemy in enemy_group:
-            enemy.speed = 1 + (3 - len(enemy_group)/8)
+            enemy.speed = 1 + (3 - len(enemy_group) / 8)
 
         # DRAW
         screen.fill(BLACK)
-        draw_stars(stars)
+        for star in stars:
+            pygame.draw.circle(screen, WHITE, star, 2)
         player_group.draw(screen)
         laser_group.draw(screen)
         enemy_group.draw(screen)
@@ -178,7 +219,7 @@ def run_game():
         clock.tick(60)
 
 # -----------------------------
-# MENU
+# MENU SCREEN
 # -----------------------------
 def menu_screen():
     selected = 0
@@ -197,30 +238,38 @@ def menu_screen():
                 elif event.key == pygame.K_DOWN:
                     selected = (selected + 1) % 2
                 elif event.key == pygame.K_RETURN:
-                    return "play" if selected == 0 else "quit"
+                    if selected == 0:
+                        return "play"
+                    else:
+                        return "quit"
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 click = True
 
         screen.fill(BLACK)
         title = font.render("SPACE INVADERS", True, WHITE)
-        screen.blit(title, (WIDTH//2 - title.get_width()//2, 150))
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 150))
 
         for i, text in enumerate(options):
             color = GREEN if i == selected else WHITE
-            surf = small_font.render(text, True, color)
-            rect = surf.get_rect(center=(WIDTH//2, 300 + i*60))
-            if rect.collidepoint(mouse_pos):
-                surf = small_font.render(text, True, GREEN)
+            option_surf = small_font.render(text, True, color)
+            option_rect = option_surf.get_rect(center=(WIDTH // 2, 300 + i * 60))
+
+            if option_rect.collidepoint(mouse_pos):
+                option_surf = small_font.render(text, True, GREEN)
                 selected = i
                 if click:
-                    return "play" if i == 0 else "quit"
-            screen.blit(surf, rect)
+                    if i == 0:
+                        return "play"
+                    else:
+                        return "quit"
+
+            screen.blit(option_surf, option_rect)
 
         pygame.display.flip()
         clock.tick(60)
 
 # -----------------------------
-# GAME OVER
+# GAME OVER SCREEN
 # -----------------------------
 def game_over_screen(score):
     while True:
@@ -232,12 +281,11 @@ def game_over_screen(score):
 
         screen.fill(BLACK)
         text1 = font.render("GAME OVER", True, RED)
-        screen.blit(text1, (WIDTH//2 - text1.get_width()//2, 200))
+        screen.blit(text1, (WIDTH // 2 - text1.get_width() // 2, 200))
         text2 = small_font.render(f"Score: {score}", True, WHITE)
-        screen.blit(text2, (WIDTH//2 - text2.get_width()//2, 280))
+        screen.blit(text2, (WIDTH // 2 - text2.get_width() // 2, 280))
         text3 = small_font.render("Press ENTER to return to menu", True, GREEN)
-        screen.blit(text3, (WIDTH//2 - text3.get_width()//2, 340))
-
+        screen.blit(text3, (WIDTH // 2 - text3.get_width() // 2, 340))
         pygame.display.flip()
         clock.tick(60)
 
@@ -251,6 +299,7 @@ def win_screen(score):
     while True:
         mouse_pos = pygame.mouse.get_pos()
         click = False
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return "quit"
@@ -260,32 +309,40 @@ def win_screen(score):
                 elif event.key == pygame.K_DOWN:
                     selected = (selected + 1) % 2
                 elif event.key == pygame.K_RETURN:
-                    return "play" if selected == 0 else "quit"
+                    if selected == 0:
+                        return "play"
+                    else:
+                        return "quit"
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 click = True
 
         screen.fill(BLACK)
         title = font.render("YOU WIN!", True, GREEN)
-        screen.blit(title, (WIDTH//2 - title.get_width()//2, 150))
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 150))
         score_text = small_font.render(f"Score: {score}", True, WHITE)
-        screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, 230))
+        screen.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, 230))
 
         for i, text in enumerate(options):
             color = GREEN if i == selected else WHITE
-            surf = small_font.render(text, True, color)
-            rect = surf.get_rect(center=(WIDTH//2, 330 + i*60))
-            if rect.collidepoint(mouse_pos):
-                surf = small_font.render(text, True, GREEN)
+            option_surf = small_font.render(text, True, color)
+            option_rect = option_surf.get_rect(center=(WIDTH // 2, 330 + i * 60))
+
+            if option_rect.collidepoint(mouse_pos):
+                option_surf = small_font.render(text, True, GREEN)
                 selected = i
                 if click:
-                    return "play" if i == 0 else "quit"
-            screen.blit(surf, rect)
+                    if i == 0:
+                        return "play"
+                    else:
+                        return "quit"
+
+            screen.blit(option_surf, option_rect)
 
         pygame.display.flip()
         clock.tick(60)
 
 # -----------------------------
-# MAIN APP LOOP
+# MAIN LOOP
 # -----------------------------
 while True:
     choice = menu_screen()
@@ -297,6 +354,7 @@ while True:
         break
 
     state, score = result
+
     if state == "lose":
         reset = game_over_screen(score)
     elif state == "win":
@@ -306,6 +364,7 @@ while True:
         break
 
 pygame.quit()
+
 
 
 
