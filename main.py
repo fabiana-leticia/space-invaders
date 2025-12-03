@@ -79,23 +79,21 @@ class EnemyLaser(pygame.sprite.Sprite):
             self.kill()
 
 # -----------------------------
-# ENEMY BASE CLASS
+# ENEMY BASE CLASS (COM CORREÇÃO)
 # -----------------------------
 class Enemy(pygame.sprite.Sprite):
+    direction = 1  # Variável de classe: TODOS os inimigos compartilham essa direção
     def __init__(self, x, y):
         super().__init__()
         self.rect = pygame.Rect(x, y, 30, 20)
-        self.speed = 1
-        self.direction = 1
+        self.speed = 1  # Velocidade individual por tipo de alien
 
     def update(self):
-        self.rect.x += self.speed * self.direction
-        if self.rect.right >= WIDTH or self.rect.left <= 0:
-            self.direction *= -1
-            self.rect.y += 20
+        # Apenas movimento HORIZONTAL (vertical e direção tratados no grupo)
+        self.rect.x += self.speed * Enemy.direction
 
 # -----------------------------
-# ALIEN CLASSES WITH RESIZED IMAGES
+# ALIEN CLASSES WITH RESIZED IMAGES (INTACTAS!)
 # -----------------------------
 ALIEN_WIDTH = 40
 ALIEN_HEIGHT = 40
@@ -124,7 +122,7 @@ class AlienType3(Enemy):
         self.speed = 0.7
 
 # -----------------------------
-# GAME LOOP
+# GAME LOOP (COM CORREÇÃO NA MOVIMENTAÇÃO DOS INIMIGOS)
 # -----------------------------
 def run_game():
     player = Player()
@@ -165,8 +163,26 @@ def run_game():
         keys = pygame.key.get_pressed()
         player_group.update(keys)
         laser_group.update()
-        enemy_group.update()
         enemy_laser_group.update()
+
+        # ---------------------------
+        # NOVA LÓGICA: VERIFICA BORDA E DESCE (APENAS UMA VEZ POR VEZ)
+        # ---------------------------
+        edge_hit = False
+        # Checa se QUALQUER inimigo tocou na borda esquerda/direita
+        for enemy in enemy_group:
+            if enemy.rect.right >= WIDTH or enemy.rect.left <= 0:
+                edge_hit = True
+                break  # Não precisa checar os outros se um já tocou
+
+        if edge_hit:
+            Enemy.direction *= -1  # Inverte direção de TODOS os inimigos
+            # Faz TODOS os inimigos descerem 20px (apenas uma vez!)
+            for enemy in enemy_group:
+                enemy.rect.y += 20
+
+        # Agora atualiza o movimento HORIZONTAL dos inimigos
+        enemy_group.update()
 
         # Enemy shooting
         if len(enemy_group) > 0:
