@@ -7,3 +7,7 @@ Press Space to shoot lasers.
 Destroy all aliens before they reach the bottom.
 Avoid enemy lasers.
 You have 3 lives.
+
+# How to run
+
+git clone "https://github.com/fabiana-leticia/space-invaders.git"
