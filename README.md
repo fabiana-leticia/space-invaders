@@ -11,6 +11,8 @@ You have 3 lives.
 # How to run
 open CMD
 
+make sure you have python installed.
+
 #clone:
 ```
 git clone "https://github.com/fabiana-leticia/space-invaders.git"
@@ -19,6 +21,7 @@ git clone "https://github.com/fabiana-leticia/space-invaders.git"
 ```
 cd space-invaders
 ```
+this project uses pygame, which you can install with:
 #install the required packeges:
 ```
 pip install -r requirements.txt
