@@ -11,14 +11,19 @@ You have 3 lives.
 # How to run
 open CMD
 
-clone:
+#clone:
+```
 git clone "https://github.com/fabiana-leticia/space-invaders.git"
-
-go to project folder:
+```
+#go to project folder:
+```
 cd space-invaders
-
-install the required packeges:
+```
+#install the required packeges:
+```
 pip install -r requirements.txt
-
-Run the main.py file:
+```
+#Run the main.py file:
+```
 python main.py
+```
